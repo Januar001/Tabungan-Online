@@ -85,4 +85,24 @@ class Nasabah extends Model
     {
         return now()->diffInYears($this->tanggal_lahir);
     }
+
+    public function anakSekolah()
+    {
+        return $this->hasOne(NasabahAnakSekolah::class);
+    }
+
+    public function badanUsaha()
+    {
+        return $this->hasOne(NasabahBadanUsaha::class);
+    }
+
+    public function rekening()
+    {
+        return $this->hasMany(Rekening::class);
+    }
+
+    public function dokumen()
+    {
+        return $this->hasMany(Dokumen::class);
+    }
 }

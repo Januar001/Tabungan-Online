@@ -11,39 +11,11 @@ class Rekening extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'rekening';
-
-    /**
-     * The primary key for the model.
-     *
-     * @var string
-     */
     protected $primaryKey = 'no_rekening';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
-    /**
-     * Indicates if the IDs are auto-incrementing.
-     *
-     * @var bool
-     */
-    public $incrementing = false; // Karena primary key adalah string (no_rekening)
-
-    /**
-     * The "type" of the primary key ID.
-     *
-     * @var string
-     */
-    protected $keyType = 'string'; // Karena primary key adalah string
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'no_rekening',
         'nasabah_id',
@@ -51,22 +23,16 @@ class Rekening extends Model
         'saldo',
         'tgl_buka',
         'status',
-        'cabang_pembuka',
+        'cabang_pembuka'
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'saldo' => 'decimal:2', // Pastikan saldo di-cast sebagai decimal
-        'tgl_buka' => 'date',   // Pastikan tgl_buka di-cast sebagai date
-        'status' => 'string',   // Enum bisa di-cast sebagai string
+        'saldo' => 'decimal:2',
+        'tgl_buka' => 'date'
     ];
 
     /**
-     * Get the nasabah that owns the rekening.
+     * Relasi ke model Nasabah
      */
     public function nasabah()
     {
@@ -74,10 +40,34 @@ class Rekening extends Model
     }
 
     /**
-     * Get the produk_tabungan that owns the rekening.
+     * Relasi ke model ProdukTabungan
      */
     public function produkTabungan()
     {
         return $this->belongsTo(ProdukTabungan::class);
+    }
+
+    // Konstanta untuk status rekening
+    public const STATUS = [
+        'aktif' => 'Aktif',
+        'nonaktif' => 'Nonaktif',
+        'diblokir' => 'Diblokir'
+    ];
+
+    // Method untuk menambah saldo
+    public function tambahSaldo($jumlah)
+    {
+        $this->saldo += $jumlah;
+        return $this->save();
+    }
+
+    // Method untuk mengurangi saldo
+    public function kurangiSaldo($jumlah)
+    {
+        if ($this->saldo >= $jumlah) {
+            $this->saldo -= $jumlah;
+            return $this->save();
+        }
+        return false;
     }
 }
