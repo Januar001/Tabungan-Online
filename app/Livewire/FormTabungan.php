@@ -2,8 +2,19 @@
 
 namespace App\Livewire;
 
+use Exception;
+use Carbon\Carbon;
+use App\Models\Alamat;
+use App\Models\Nasabah;
 use Livewire\Component;
+use Illuminate\Support\Str;
+use App\Models\KontakDarurat;
 use Livewire\WithFileUploads;
+use App\Models\DataBadanUsaha;
+use App\Models\DataTabunganku;
+use App\Models\DokumenPengajuan;
+use App\Models\PengajuanRekening;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
@@ -327,31 +338,141 @@ class FormTabungan extends Component
         $this->fileNameNpwp = $this->fileNpwp ? $this->fileNpwp->getClientOriginalName() : 'Belum ada file dipilih';
     }
 
-    // PENYESUAIAN: Method submit() hanya memvalidasi persetujuan
     public function submit()
     {
-        // Validasi terakhir hanya untuk persetujuan di Step 4
+        // Validasi terakhir untuk persetujuan di Step 4
         $this->validate(
             ['persetujuan' => 'accepted'],
             ['persetujuan.accepted' => 'Anda harus menyetujui syarat dan ketentuan untuk melanjutkan.']
         );
 
-        // Simpan file ke storage
-        $identitasPath = $this->fileIdentitas->store('documents');
-        $selfiePath = $this->fileSelfie->store('documents');
+        // Gunakan DB::transaction untuk memastikan semua data berhasil disimpan atau tidak sama sekali
+        try {
+            DB::transaction(function () {
+                // 1. Simpan file-file ke storage terlebih dahulu
+                $identitasPath = $this->fileIdentitas->store('dokumen_pengajuan');
+                $selfiePath = $this->fileSelfie->store('dokumen_pengajuan');
 
-        $aktaPath = null;
-        $npwpPath = null;
-        if ($this->product === 'simade' && $this->simadeType === 'badan_usaha') {
-            $aktaPath = $this->fileAkta->store('documents');
-            $npwpPath = $this->fileNpwp->store('documents');
+                // 2. Buat data Nasabah baru
+                $nasabah = Nasabah::create([
+                    'user_id'             => auth()->id(),
+                    'nama_lengkap'        => $this->dataPribadi['namaLengkap'],
+                    'nama_panggilan'      => $this->dataPribadi['namaPanggilan'],
+                    'jenis_kelamin'       => $this->dataPribadi['jenisKelamin'],
+                    'nama_ibu_kandung'    => $this->dataPribadi['namaIbu'],
+                    'tempat_lahir'        => $this->dataPribadi['tempatLahir'],
+                    'tanggal_lahir'       => $this->dataPribadi['tanggalLahir'],
+                    'agama'               => $this->dataPribadi['agama'],
+                    'pendidikan_terakhir' => $this->dataPribadi['pendidikan'],
+                    'status_perkawinan'   => $this->dataPribadi['status'],
+                    'pekerjaan'           => $this->dataPribadi['pekerjaan'],
+                    'npwp'                => $this->dataPribadi['npwp'] ?? null,
+                    'no_telepon'          => $this->dataPribadi['noTelp'],
+                ]);
+
+                // 3. Buat data Alamat untuk Nasabah
+                Alamat::create([
+                    'nasabah_id'     => $nasabah->id,
+                    'jenis_alamat'   => 'identitas', // Asumsi dari form adalah alamat identitas
+                    'alamat_lengkap' => $this->dataPribadi['alamatIdentitas'],
+                    'provinsi_id'    => $this->selectedProvinsi,
+                    'kabupaten_id'   => $this->selectedKabupaten,
+                    'kecamatan_id'   => $this->selectedKecamatan,
+                    'desa_id'        => $this->selectedDesa,
+                    'kode_pos'       => $this->dataPribadi['kodePos'],
+                ]);
+
+                // 4. Buat data Pengajuan Rekening
+                $pengajuan = PengajuanRekening::create([
+                    'nasabah_id'           => $nasabah->id,
+                    'kode_pengajuan'       => 'REG-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6)),
+                    'produk'               => $this->product,
+                    'tipe_simade'          => $this->product === 'simade' ? $this->simadeType : null,
+                    'penghasilan_per_bulan'=> $this->dataPribadi['penghasilan'],
+                    'sumber_dana'          => $this->dataPribadi['sumberDana'],
+                    'tujuan_penggunaan'    => $this->dataPribadi['tujuanPenggunaanDana'],
+                    'status'               => 'pending', // Status awal
+                ]);
+
+                // 5. Simpan data Kontak Darurat
+                KontakDarurat::create([
+                    'pengajuan_rekening_id' => $pengajuan->id,
+                    'nama_lengkap'          => $this->namaKontakDarurat,
+                    'hubungan'              => $this->hubunganKontakDarurat,
+                    'alamat'                => $this->alamatKontakDarurat,
+                    'no_telepon'            => $this->teleponKontakDarurat,
+                ]);
+
+                // 6. Simpan data Dokumen Pengajuan (Identitas dan Selfie)
+                DokumenPengajuan::create([
+                    'pengajuan_rekening_id' => $pengajuan->id,
+                    'jenis_dokumen'         => 'identitas_pribadi',
+                    'path_file'             => $identitasPath,
+                    'nama_asli_file'        => $this->fileIdentitas->getClientOriginalName(),
+                ]);
+                DokumenPengajuan::create([
+                    'pengajuan_rekening_id' => $pengajuan->id,
+                    'jenis_dokumen'         => 'selfie_identitas',
+                    'path_file'             => $selfiePath,
+                    'nama_asli_file'        => $this->fileSelfie->getClientOriginalName(),
+                ]);
+
+
+                // 7. Logika kondisional berdasarkan produk yang dipilih
+                if ($this->product === 'tabunganku') {
+                    // Simpan data spesifik untuk TabunganKu
+                    DataTabunganku::create([
+                        'pengajuan_rekening_id' => $pengajuan->id,
+                        'nama_sekolah'          => $this->dataTabunganku['namaSekolah'],
+                        'kelas'                 => $this->dataTabunganku['kelas'],
+                        'nama_wali'             => $this->dataTabunganku['namaWali'],
+                        'no_identitas_wali'     => $this->dataTabunganku['noIdentitasWali'],
+                        'hubungan_wali'         => $this->dataTabunganku['hubunganWali'],
+                    ]);
+                } elseif ($this->product === 'simade' && $this->simadeType === 'badan_usaha') {
+                    // Simpan file Akta dan NPWP Badan Usaha
+                    $aktaPath = $this->fileAkta->store('dokumen_pengajuan');
+                    $npwpPath = $this->fileNpwp->store('dokumen_pengajuan');
+
+                    // Simpan data dokumen Akta dan NPWP
+                    DokumenPengajuan::create([
+                        'pengajuan_rekening_id' => $pengajuan->id,
+                        'jenis_dokumen'         => 'akta_perusahaan',
+                        'path_file'             => $aktaPath,
+                        'nama_asli_file'        => $this->fileAkta->getClientOriginalName(),
+                    ]);
+                    DokumenPengajuan::create([
+                        'pengajuan_rekening_id' => $pengajuan->id,
+                        'jenis_dokumen'         => 'npwp_perusahaan',
+                        'path_file'             => $npwpPath,
+                        'nama_asli_file'        => $this->fileNpwp->getClientOriginalName(),
+                    ]);
+
+                    // Simpan data spesifik untuk Badan Usaha
+                    DataBadanUsaha::create([
+                        'pengajuan_rekening_id' => $pengajuan->id,
+                        'nama_perusahaan'       => $this->badanUsaha['namaPerusahaan'],
+                        'no_akta_pendirian'     => $this->badanUsaha['noAktaPendirian'] ?? null,
+                        'no_izin_usaha'         => $this->badanUsaha['noIzinUsaha'] ?? null,
+                        'npwp_perusahaan'       => $this->badanUsaha['npwpPerusahaan'],
+                        'jabatan_pengurus'      => $this->badanUsaha['jabatan'],
+                        'no_telepon_perusahaan' => $this->badanUsaha['noTelpPerusahaan'],
+                        'bidang_usaha'          => $this->badanUsaha['bidangUsaha'],
+                    ]);
+                }
+            });
+
+            // Jika transaksi berhasil, tampilkan pesan sukses
+            session()->flash('message', 'Pengajuan berhasil dikirim! Terima kasih telah membuka rekening.');
+            
+            // Reset form dan kembali ke awal
+            $this->reset();
+            $this->mount(); // Panggil mount lagi untuk load data awal
+
+        } catch (Exception $e) {
+            // Jika terjadi error, tampilkan pesan error dan jangan reset form
+            // Ini akan menjaga data yang sudah diisi pengguna
+            session()->flash('error', 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi. Error: ' . $e->getMessage());
         }
-
-
-        session()->flash('message', 'Pengajuan berhasil dikirim! Terima kasih telah membuka rekening.');
-        
-        // Reset form dan kembali ke awal
-        $this->reset();
-        $this->mount(); // Panggil mount lagi untuk load data awal jika perlu
     }
 }

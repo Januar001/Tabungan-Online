@@ -855,7 +855,6 @@
                             <button type="button" class="btn btn-outline-primary"
                                 wire:click="prevStep">Sebelumnya</button>
 
-                            {{-- 2. Hapus wire:click dari tombol ini. Biarkan hanya type="submit" --}}
                             <button type="submit" class="btn btn-success"
                                 @if (!$persetujuan) disabled @endif>
                                 Kirim Pengajuan

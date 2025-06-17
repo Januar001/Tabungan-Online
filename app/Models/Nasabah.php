@@ -3,15 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Nasabah extends Model
 {
     use HasFactory;
 
+    /**
+     * Nama tabel yang terhubung dengan model ini.
+     *
+     * @var string
+     */
     protected $table = 'nasabah';
 
+    /**
+     * Atribut yang dapat diisi secara massal (mass assignable).
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
+        'user_id', 
         'nama_lengkap',
         'nama_panggilan',
         'jenis_kelamin',
@@ -19,90 +32,34 @@ class Nasabah extends Model
         'tempat_lahir',
         'tanggal_lahir',
         'agama',
-        'pendidikan',
-        'jenis_identitas',
-        'no_identitas',
-        'alamat_identitas',
-        'alamat_domisili',
-        'kode_pos',
-        'kota',
-        'no_telp',
-        'status',
-        'npwp',
+        'pendidikan_terakhir',
+        'status_perkawinan',
         'pekerjaan',
-        'penghasilan',
-        'sumber_dana'
+        'npwp',
+        'no_telepon',
     ];
 
-    // Konstanta untuk enum
-    public const JENIS_KELAMIN = [
-        'L' => 'Laki-laki',
-        'P' => 'Perempuan'
+    /**
+     * Atribut yang harus di-cast ke tipe data tertentu.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'tanggal_lahir' => 'date',
     ];
 
-    public const AGAMA = [
-        'Islam' => 'Islam',
-        'Kristen' => 'Kristen',
-        'Katolik' => 'Katolik',
-        'Hindu' => 'Hindu',
-        'Buddha' => 'Buddha',
-        'Konghucu' => 'Konghucu',
-        'Lainnya' => 'Lainnya'
-    ];
-
-    public const PENDIDIKAN = [
-        'SD' => 'SD',
-        'SMP' => 'SMP',
-        'SMA/K' => 'SMA/SMK',
-        'Diploma' => 'Diploma',
-        'S1' => 'S1',
-        'S2' => 'S2',
-        'S3' => 'S3',
-        'Lainnya' => 'Lainnya'
-    ];
-
-    public const PEKERJAAN = [
-        'PNS' => 'PNS',
-        'TNI/POLRI' => 'TNI/Polri',
-        'Wiraswasta' => 'Wiraswasta',
-        'Karyawan Swasta' => 'Karyawan Swasta',
-        'Pelajar/Mahasiswa' => 'Pelajar/Mahasiswa',
-        'Ibu Rumah Tangga' => 'Ibu Rumah Tangga',
-        'Lainnya' => 'Lainnya'
-    ];
-
-    public const PENGHASILAN = [
-        '< 1 juta' => 'Kurang dari 1 juta',
-        '1-3 juta' => '1-3 juta',
-        '3-5 juta' => '3-5 juta',
-        '5-10 juta' => '5-10 juta',
-        '> 10 juta' => 'Lebih dari 10 juta',
-        'Tidak Berpenghasilan' => 'Tidak Berpenghasilan'
-    ];
-
-    // Fungsi untuk menghitung umur
-    public function getUmurAttribute()
+    public function pengajuanRekening(): HasMany
     {
-        return now()->diffInYears($this->tanggal_lahir);
+        return $this->hasMany(PengajuanRekening::class, 'nasabah_id');
     }
 
-    public function anakSekolah()
+    public function alamat(): HasMany
     {
-        return $this->hasOne(NasabahAnakSekolah::class);
+        return $this->hasMany(Alamat::class, 'nasabah_id');
     }
 
-    public function badanUsaha()
+    public function user(): BelongsTo
     {
-        return $this->hasOne(NasabahBadanUsaha::class);
-    }
-
-    public function rekening()
-    {
-        return $this->hasMany(Rekening::class);
-    }
-
-    public function dokumen()
-    {
-        return $this->hasMany(Dokumen::class);
+        return $this->belongsTo(User::class);
     }
 }

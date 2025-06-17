@@ -19,6 +19,10 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            
+            // --- PERBAIKAN DI SINI ---
+            // Menambahkan kolom is_admin tanpa ->after()
+            $table->tinyInteger('is_admin')->default(0)->after('remember_token');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -42,8 +46,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
+        Schema::table('users', function (Blueprint $table) {
+            // Jika di-rollback, kembalikan menjadi boolean
+            $table->boolean('is_admin')->default(false)->change();
+        });
     }
 };
