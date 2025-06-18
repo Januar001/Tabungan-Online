@@ -62,4 +62,15 @@ class Nasabah extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Nasabah $nasabah) {
+            // Looping dan hapus setiap pengajuan
+            // Ini akan memicu event 'deleting' di model PengajuanRekening juga (yang menghapus file)
+            foreach ($nasabah->pengajuanRekening as $pengajuan) {
+                $pengajuan->delete();
+            }
+        });
+    }
 }

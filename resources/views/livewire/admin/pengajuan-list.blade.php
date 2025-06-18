@@ -38,7 +38,7 @@
                 </p>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive" style="padding-bottom: 10%">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
@@ -95,8 +95,16 @@
                                                     <i class="bi bi-eye me-2"></i>Lihat Detail
                                                 </a>
                                             </li>
-                                            {{-- Tambahkan aksi lain di sini nanti, misal Hapus --}}
-                                            {{-- <li><a class="dropdown-item" href="#">Aksi Lain</a></li> --}}
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item text-danger"
+                                                    wire:click="hapusPengajuan({{ $pengajuan->id }})"
+                                                    wire:confirm="Anda yakin ingin menghapus pengajuan dengan kode '{{ $pengajuan->kode_pengajuan }}'? Aksi ini tidak bisa dibatalkan.">
+                                                    <i class="bi bi-trash-fill me-2"></i>Hapus Pengajuan
+                                                </button>
+                                            </li>
                                         </ul>
                                     </div>
                                 </td>

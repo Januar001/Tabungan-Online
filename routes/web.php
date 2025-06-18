@@ -57,11 +57,14 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/users', UserManagement::class)
         ->name('users.index') // <-- Nama ini digabung dengan 'admin.' menjadi 'admin.users.index'
         ->middleware('superadmin'); 
+    Route::get('/nasabah', \App\Livewire\Admin\NasabahList::class)->name('nasabah.index');
+    Route::get('/nasabah/{nasabah}', \App\Livewire\Admin\NasabahDetail::class)->name('nasabah.detail');
 
-    // PINDAHKAN ROUTE DOKUMEN KE SINI
+
     Route::get('/dokumen/{path}', [\App\Http\Controllers\DokumenController::class, 'show'])
         ->name('dokumen.show') // Nama akhirnya akan menjadi 'admin.dokumen.show'
         ->where('path', '.*');
+    
 });
 
 

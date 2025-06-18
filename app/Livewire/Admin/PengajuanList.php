@@ -27,19 +27,28 @@ class PengajuanList extends Component
     }
 
     // Reset halaman setiap kali ada perubahan pada filter atau pencarian
-    public function updatingSearch() { $this->resetPage(); }
-    public function updatingFilterStatus() { $this->resetPage(); }
-    public function updatingFilterProduk() { $this->resetPage(); }
+    public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+    public function updatingFilterStatus()
+    {
+        $this->resetPage();
+    }
+    public function updatingFilterProduk()
+    {
+        $this->resetPage();
+    }
 
     public function render()
     {
         $pengajuans = PengajuanRekening::with('nasabah') // Eager loading
             ->when($this->search, function ($query) {
                 // Logika pencarian
-                $query->where('kode_pengajuan', 'like', '%'.$this->search.'%')
-                      ->orWhereHas('nasabah', function($subQuery) {
-                          $subQuery->where('nama_lengkap', 'like', '%'.$this->search.'%');
-                      });
+                $query->where('kode_pengajuan', 'like', '%' . $this->search . '%')
+                    ->orWhereHas('nasabah', function ($subQuery) {
+                        $subQuery->where('nama_lengkap', 'like', '%' . $this->search . '%');
+                    });
             })
             ->when($this->filterStatus, function ($query) {
                 // Logika filter status
@@ -55,5 +64,18 @@ class PengajuanList extends Component
         return view('livewire.admin.pengajuan-list', [
             'pengajuans' => $pengajuans
         ])->layout('layouts.admin');
+    }
+
+    public function hapusPengajuan($pengajuanId)
+    {
+        // Cari pengajuan berdasarkan ID
+        $pengajuan = PengajuanRekening::find($pengajuanId);
+
+        if ($pengajuan) {
+            // Hapus data pengajuan.
+            // (Kita akan atur agar file di storage juga ikut terhapus secara otomatis di Langkah 3)
+            $pengajuan->delete();
+            session()->flash('message', 'Pengajuan berhasil dihapus.');
+        }
     }
 }
